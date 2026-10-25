@@ -77,7 +77,7 @@ async function getContext() {
 
 async function callMethod(
   signature: string,
-  args: unknown[],
+  args: algosdk.ABIValue[],
 ): Promise<{ transactionId: string; returnValue?: unknown }> {
   const { algorand, operator, appId } = await getContext();
   const method = algosdk.ABIMethod.fromSignature(signature);

@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "GreenAfrica",
+    "slug": "greenafrica-recycle",
+    "scheme": "greenafrica",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.greenafrica.recycle",
+      "adaptiveIcon": {
+        "backgroundColor": "#103E29"
+      },
+      "permissions": []
+    },
+    "ios": {
+      "bundleIdentifier": "com.greenafrica.recycle",
+      "supportsTablet": false
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "extra": {
+      "router": {}
+    }
+  }
+}
