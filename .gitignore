@@ -5,3 +5,5 @@
 **/dist/
 **/.expo/
 **/.venv/
+**/__pycache__/
+**/*.pyc
