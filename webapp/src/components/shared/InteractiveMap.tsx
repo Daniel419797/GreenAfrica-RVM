@@ -76,27 +76,17 @@ export default function InteractiveMap({ className = "" }: InteractiveMapProps) 
                   </p>
                 </div>
 
-                {/* Hedera contract link */}
+                {/* Base Sepolia ledger: do not display a legacy Hedera address. */}
                 <div className="content-stretch flex gap-px h-[18px] items-center relative shrink-0 w-full">
                   <div className="basis-0 content-stretch flex gap-[5px] grow items-center min-h-px min-w-px relative shrink-0">
                     <div className="relative shrink-0 size-[18px]">
                       <img alt="" className="block max-w-none size-full" src="/9eec953f9cf5fbef4f7cf8bce917822caa2abb2a.svg" />
                     </div>
                     <p className="font-normal leading-none relative shrink-0 text-[#696565] text-[13px] text-center text-nowrap whitespace-pre">
-                      Hedera contract
+                      Base Sepolia ledger
                     </p>
                   </div>
-                  <a 
-                    href="https://hashscan.io/testnet/account/0.0.6779400" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="[text-underline-position:from-font] decoration-solid font-medium leading-none relative shrink-0 text-[#1e1e1e] text-[16px] text-nowrap underline whitespace-pre flex items-center gap-1"
-                  >
-                    0.0.6779400
-                    <div className="relative shrink-0 size-[16px]">
-                      <img alt="" className="block max-w-none size-full" src="/03fabe1a19d67b95815577a39117aa7ca5648eb2.svg" />
-                    </div>
-                  </a>
+                  <span className="font-medium text-[#1e1e1e] text-[13px]">Deployment pending</span>
                 </div>
 
                 {/* PEPs collected */}

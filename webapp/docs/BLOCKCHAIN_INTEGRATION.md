@@ -1,88 +1,17 @@
-# Algorand Blockchain Integration
+# Green Africa Blockchain Integration: Base
 
-GreenAfrica uses Algorand as its only blockchain layer.
+Green Africa has migrated its intended accounting layer from Algorand to **Base**. Green Points are non-transferable in-app rewards, not an ERC-20 token. Recyclers use Firebase and a Green ID and do not need wallets.
 
-## Responsibilities
+- Solidity contract: `base/contracts/GreenAfrica.sol`
+- Build and local EVM tests: `base/scripts/compile.mjs` and `base/tests/GreenAfrica.test.mjs`
+- Backend client: `src/lib/base/client.ts`
+- Internal reward accounting: `src/lib/base/server-points.ts`
+- Public balance action: `src/actions/greenpoints.ts`, which verifies Firebase identity.
 
-The Algorand application is responsible for:
+Only the trusted server-side operator can send Base transactions, and only a governance owner can register RVMs or adjust balances. Machine-accepted PET sessions are hashed and checked for duplicate IDs on-chain. Phone numbers, emails and raw camera recordings remain off-chain.
 
-- registering and enabling reverse vending machines
-- registering recycler Green IDs
-- recording accepted recycling sessions
-- preventing duplicate session rewards
-- maintaining PET totals
-- maintaining Green Points balances
-- recording point redemptions
-- emitting application events for Indexer-based analytics
+Set `BASE_NETWORK=sepolia`, `BASE_RPC_URL=https://sepolia.base.org`, `BASE_GREENAFRICA_CONTRACT_ADDRESS` and the server-only `BASE_OPERATOR_PRIVATE_KEY`. Never use client-exposed variables for secrets.
 
-Firebase remains the user-profile, messaging and UI-cache layer. It is not the authoritative blockchain ledger.
+Base Mainnet must not be enabled until review, confirmed deployments, machine tests and reconciliation are complete. Testnet is chain ID 84532. See `base/README.md` and `docs/LAGOS_PILOT_ACCEPTANCE.md`.
 
-## Application source
-
-`../../algorand/src/GreenAfrica.algo.ts`
-
-## Webapp client
-
-`src/lib/algorand/client.ts`
-
-The client uses a server-side GreenAfrica operator account. Recyclers do not need individual Algorand wallets.
-
-## Required server variables
-
-```bash
-ALGORAND_NETWORK=testnet
-ALGORAND_GREENAFRICA_APP_ID=
-GREENAFRICA_OPERATOR_MNEMONIC=
-GREENAFRICA_DEFAULT_RVM_ID=RVM-IFITNESS-ORCHID-001
-```
-
-Optional custom node/indexer configuration:
-
-```bash
-ALGOD_SERVER=
-ALGOD_PORT=
-ALGOD_TOKEN=
-INDEXER_SERVER=
-INDEXER_PORT=
-INDEXER_TOKEN=
-```
-
-Never expose the operator mnemonic through a `NEXT_PUBLIC_*` variable.
-
-## User registration
-
-After Firebase creates a user and Green ID, `registerUserOnAlgorand` registers that Green ID in the Algorand application. The user profile remains in Firebase; the blockchain stores only the opaque recycler identifier and recycling/reward accounting.
-
-## Deposit flow
-
-```text
-RVM accepts bottle
-      |
-      v
-backend receives session
-      |
-      v
-recordDeposit(...)
-      |
-      +--> verifies active RVM
-      +--> rejects duplicate session
-      +--> increments PET total
-      +--> increments Green Points
-      `--> emits deposit event
-```
-
-The receipt/media payload is hashed before it is supplied to the application.
-
-## Redemption flow
-
-The webapp checks the recycler's Algorand application balance and then calls `redeemPoints`. A successful blockchain call is followed by the off-chain airtime/data fulfillment flow and a Firebase audit record.
-
-## Deployment
-
-1. Build and test `algorand/src/GreenAfrica.algo.ts` on LocalNet.
-2. Deploy it to Algorand TestNet.
-3. Set `ALGORAND_GREENAFRICA_APP_ID`.
-4. Fund/configure the GreenAfrica operator account.
-5. Register pilot RVM IDs.
-6. Run deposit, duplicate-session and redemption tests.
-7. Use Indexer data for dashboards and audit verification.
+**Deployment status: not deployed.** The old Algorand system is archived, not used by the active backend.

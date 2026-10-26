@@ -8,27 +8,27 @@ on:
   pull_request:
     branches:
       - main
+      - security/pilot-reward-boundaries-20261026
 
 permissions:
   contents: read
 
 jobs:
-  algorand:
-    name: Algorand contract
+  base-contract:
+    name: Base Solidity ledger and local EVM tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install dependencies
-        working-directory: algorand
-        run: npm install
-      - name: Compile contract
-        working-directory: algorand
-        run: npm run build
-      - name: Run contract tests
-        working-directory: algorand
+          cache: npm
+          cache-dependency-path: base/package-lock.json
+      - name: Install Base dependencies
+        working-directory: base
+        run: npm ci
+      - name: Compile Solidity and verify deposit/redemption invariants
+        working-directory: base
         run: npm test
 
   webapp:

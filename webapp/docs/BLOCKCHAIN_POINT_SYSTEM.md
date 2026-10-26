@@ -1,50 +1,11 @@
-# Green Points on Algorand
+# Green Points on Base
 
-Green Points are GreenAfrica's recycling reward units. Their authoritative blockchain balance is maintained by the GreenAfrica Algorand application.
+Green Points are **non-transferable off-wallet** in-app reward units accounted for in the Green Africa Solidity contract on Base. They are not an ERC-20 or a cash-backed cryptoasset.
 
-## Current model
+The authoritative state includes recycler hashed Green IDs, points balances, PET totals, deduplicated deposit session IDs, redemption IDs and audited operator changes. Firebase caches display data but cannot be trusted as proof of balances.
 
-Green Points are application accounting state rather than a transferable token.
+Source: `../base/contracts/GreenAfrica.sol`. Backend: `src/lib/base/client.ts`, `src/lib/base/server-points.ts`.
 
-For a successful bottle deposit:
+A real PET deposit must be verified by trusted hardware and a protected backend before Base ledger credit occurs. The user-supplied points query parameter must never mint points. The live machine-to-Base path remains incomplete and cannot be advertised as active.
 
-```text
-recordDeposit
-  -> PET total increases
-  -> Green Points balance increases
-  -> unique session ID is marked as used
-  -> deposit event is emitted
-```
-
-For a redemption:
-
-```text
-redeemPoints
-  -> validates sufficient balance
-  -> Green Points balance decreases
-  -> redemption ID is marked as used
-  -> redemption event is emitted
-```
-
-Referral/admin rewards use the application's `adjustPoints` method.
-
-## Source files
-
-- Algorand application: `../../algorand/src/GreenAfrica.algo.ts`
-- Server client: `src/lib/algorand/client.ts`
-- Reward actions: `src/actions/greenpoints.ts`
-- Firebase cache/audit flow: `src/lib/firebase/firestore.ts`
-
-## Firebase relationship
-
-Firebase's `totalPoints` field is a UI cache. Blockchain writes are performed first; the Firebase cache and transaction history are updated after a successful Algorand call.
-
-For reconciliation, read the recycler's application state from Algorand and compare it with the cached Firebase value.
-
-## Privacy
-
-Recycler Green IDs are opaque application keys. Redemption destinations such as phone numbers are hashed before being sent to the Algorand application.
-
-## Future ASA option
-
-If GreenAfrica later needs transferable, user-held Green Points, the reward can be represented by an Algorand Standard Asset. That is not required for the current airtime/data redemption model.
+The payment processor and reconciliation procedures must be tested before airtime redemption is enabled. See `base/README.md`.

@@ -21,7 +21,7 @@ import {
   processReferral,
   type GreenAfricaUser,
 } from '@/lib/firebase/firestore';
-import { registerUserOnAlgorand } from '@/actions/blockchain';
+import { registerUserOnBase } from '@/actions/blockchain';
 import { AuthContextType, PhoneVerificationState } from '@/types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -87,7 +87,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (userData) {
         try {
           const idToken = await firebaseUser.getIdToken();
-          const blockchainResult = await registerUserOnAlgorand(
+          const blockchainResult = await registerUserOnBase(
             userData.greenId,
             userData.referralCode,
             referralCode,
@@ -96,12 +96,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
           if (!blockchainResult.success) {
             console.warn(
-              `Algorand registration failed for ${userData.greenId}:`,
+              `Base registration failed for ${userData.greenId}:`,
               blockchainResult.error,
             );
           }
         } catch (blockchainError) {
-          console.error('Algorand registration error:', blockchainError);
+          console.error('Base registration error:', blockchainError);
         }
 
         setGreenAfricaUser(userData);

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { redeemAirtime } from '@/actions/airtime';
+import { auth } from '@/lib/firebase/config';
 
 export interface RedeemData {
   type: string;
@@ -68,7 +69,8 @@ export function useRedemption() {
       // Final submission - process airtime redemption
       setIsRedeeming(true);
       try {
-        const idToken = await user.getIdToken();
+        const idToken = await auth.currentUser?.getIdToken();
+        if (!idToken) throw new Error('Please sign in again before redeeming.');
         const result = await redeemAirtime({
           idToken,
           userId: user.uid,
