@@ -11,12 +11,14 @@ import {
   adjustPointsForUser,
   burnPointsForUser,
   getUserPointsFromBlockchain,
-} from '@/actions/greenpoints';
+} from '@/lib/algorand/server-points';
+import { verifyRecyclerToken } from '@/lib/firebase/verified-user';
 import { detectNetwork, formatPhoneNumber, isValidNigerianPhone } from '@/lib/utils/phone';
 import { FieldValue } from 'firebase-admin/firestore';
 
 export interface AirtimeRedemptionRequest {
-  userId: string;
+  idToken: string;
+  userId?: string; // Deprecated client hint; must match the verified token if supplied.
   phone: string;
   amount: number;
   network?: string;
@@ -58,14 +60,16 @@ function validateRedemptionRequest(request: AirtimeRedemptionRequest): {
   valid: boolean;
   error?: string;
 } {
-  const { userId, phone, amount, network } = request;
+  const { phone, amount, network } = request;
 
-  if (!userId) return { valid: false, error: 'User ID is required' };
+  if (typeof request.idToken !== 'string' || !request.idToken) {
+    return { valid: false, error: 'Authentication required' };
+  }
   if (!phone) return { valid: false, error: 'Phone number is required' };
   if (!isValidNigerianPhone(phone)) {
     return { valid: false, error: 'Invalid Nigerian phone number' };
   }
-  if (!amount || amount < 50 || amount > 5000) {
+  if (!Number.isSafeInteger(amount) || amount < 50 || amount > 5000) {
     return { valid: false, error: 'Amount must be between ₦50 and ₦5000' };
   }
 
@@ -144,7 +148,16 @@ export async function redeemAirtime(
       };
     }
 
-    const { userId, phone, amount, network: manualNetwork } = request;
+    const userId = await verifyRecyclerToken(request.idToken);
+    if (!userId || (request.userId && request.userId !== userId)) {
+      return {
+        success: false,
+        message: 'Authentication required',
+        error: 'Invalid or mismatched account credentials',
+      };
+    }
+
+    const { phone, amount, network: manualNetwork } = request;
     const formattedPhone = formatPhoneNumber(phone);
     const detectedNetwork = detectNetwork(formattedPhone);
 

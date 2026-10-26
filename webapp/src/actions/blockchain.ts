@@ -2,10 +2,10 @@
 
 import {
   checkUserExists,
-  registerRVMOnBlockchain,
   registerUserOnBlockchain,
 } from '@/lib/algorand/client';
-import { getUserByReferralCodeAdmin } from '@/lib/firebase/admin-firestore';
+import { getUserAdmin, getUserByReferralCodeAdmin } from '@/lib/firebase/admin-firestore';
+import { verifyRecyclerToken } from '@/lib/firebase/verified-user';
 
 export interface BlockchainRegistrationResult {
   success: boolean;
@@ -24,6 +24,7 @@ export async function registerUserOnAlgorand(
   greenId: string,
   referralCode: string,
   referredByCode?: string,
+  idToken?: string,
 ): Promise<BlockchainRegistrationResult> {
   try {
     if (!greenId || !referralCode) {
@@ -32,6 +33,15 @@ export async function registerUserOnAlgorand(
         message: 'Missing required parameters: greenId and referralCode',
         error: 'Invalid parameters',
       };
+    }
+
+    const uid = await verifyRecyclerToken(idToken);
+    if (!uid) {
+      return { success: false, message: 'Authentication required', error: 'Invalid Firebase token' };
+    }
+    const profile = await getUserAdmin(uid);
+    if (!profile || profile.greenId !== greenId || profile.referralCode !== referralCode) {
+      return { success: false, message: 'Profile mismatch', error: 'Registration must match your verified account' };
     }
 
     let validatedReferredByCode: string | undefined = referredByCode;
@@ -86,55 +96,23 @@ export async function registerUserOnAlgorand(
  * Location and descriptive metadata remain off-chain; the application stores
  * the machine identifier and activation state used to authorize deposits.
  */
+/**
+ * Machine registration is an operator-only action. The public Server Action
+ * intentionally never signs an RVM transaction based on browser input.
+ * Provision verified machines through the server-side operator tooling.
+ */
 export async function registerRVMOnAlgorand(
-  rvmId: string,
-  lat: number,
-  lng: number,
-  name: string,
-  metaURI?: string,
+  _rvmId: string,
+  _lat: number,
+  _lng: number,
+  _name: string,
+  _metaURI?: string,
 ): Promise<BlockchainRegistrationResult> {
-  try {
-    if (!rvmId || !name || lat === undefined || lng === undefined) {
-      return {
-        success: false,
-        message: 'Missing required parameters: rvmId, name, lat, lng',
-        error: 'Invalid parameters',
-      };
-    }
-
-    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-      return {
-        success: false,
-        message: 'Invalid coordinates: lat must be -90 to 90, lng must be -180 to 180',
-        error: 'Invalid coordinates',
-      };
-    }
-
-    const result = await registerRVMOnBlockchain(rvmId, lat, lng, name, metaURI || '');
-
-    if (!result.success) {
-      return {
-        success: false,
-        message: 'Failed to register RVM on Algorand',
-        error: result.error,
-      };
-    }
-
-    return {
-      success: true,
-      message: result.transactionId
-        ? 'RVM successfully registered on Algorand'
-        : 'RVM already registered on Algorand',
-      transactionId: result.transactionId,
-    };
-  } catch (error) {
-    console.error('Unexpected Algorand RVM registration error:', error);
-    return {
-      success: false,
-      message: 'Unexpected error during Algorand RVM registration',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
+  return {
+    success: false,
+    message: 'RVM provisioning is restricted to authorised operators',
+    error: 'Public RVM registration is disabled',
+  };
 }
 
 export async function checkUserExistsOnAlgorand(greenId: string): Promise<{

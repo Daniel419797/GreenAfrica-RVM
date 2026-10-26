@@ -64,11 +64,13 @@ export function useRedemption() {
   };
 
   const handleRedeemSubmit = async (step: number, data: Partial<RedeemData>) => {
-    if (step === 3 && data.type === 'airtime' && user?.uid) {
+    if (step === 3 && (data.type || redeemData.type) === 'airtime' && user?.uid) {
       // Final submission - process airtime redemption
       setIsRedeeming(true);
       try {
+        const idToken = await user.getIdToken();
         const result = await redeemAirtime({
+          idToken,
           userId: user.uid,
           phone: data.phone || redeemData.phone,
           amount: parseInt(data.amount || redeemData.amount),

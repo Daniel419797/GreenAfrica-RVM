@@ -17,14 +17,14 @@ import {
   ErrorModal 
 } from './components/modals/NotificationModals';
 
-// Component that handles reward processing using useSearchParams
-function RewardHandler({ 
-  onShowPointsEarned 
-}: { 
-  onShowPointsEarned: (points: number, code: string, isLoading?: boolean) => void 
-}) {
-  useRewardHandler(onShowPointsEarned);
-  return null; // This component only handles side effects
+// Browser QR links show pending verification but never award points.
+function RewardHandler() {
+  const notice = useRewardHandler();
+  return notice ? (
+    <p role="status" aria-live="polite" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900">
+      {notice}
+    </p>
+  ) : null;
 }
 
 // Dashboard content component that doesn't use useSearchParams
@@ -59,7 +59,6 @@ function DashboardContent() {
     setShowProfileSuccess,
     setShowPointsEarned,
     handleWelcomeComplete,
-    handleShowPointsEarned,
     handleProfileSubmit,
     handleLogout
   } = useDashboard();
@@ -198,7 +197,7 @@ function DashboardContent() {
 
       {/* RewardHandler wrapped in Suspense */}
       <Suspense fallback={null}>
-        <RewardHandler onShowPointsEarned={handleShowPointsEarned} />
+        <RewardHandler />
       </Suspense>
     </div>
   );

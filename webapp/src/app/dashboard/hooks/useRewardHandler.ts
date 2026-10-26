@@ -1,63 +1,39 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
-import { useAddPoints } from '@/hooks/useFirestore';
 
-export function useRewardHandler(
-  onShowPointsEarned: (points: number, code: string, isLoading?: boolean) => void,
-) {
-  const { user, greenAfricaUser } = useAuth();
-  const { addPoints } = useAddPoints();
+/**
+ * A QR link from a public machine is not proof of material acceptance.
+ * Pending sessions may be shown to users but must never mint Green Points.
+ */
+export function useRewardHandler(): string | null {
   const searchParams = useSearchParams();
-  const processedRewardRef = useRef<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    const handlePointReward = async () => {
-      if (!user?.uid || !greenAfricaUser || isProcessing) return;
+    const code = searchParams.get('code');
+    if (!code) return;
 
-      const code = searchParams.get('code');
-      const pointValue = searchParams.get('points') || searchParams.get('point');
-      if (!code || !pointValue) return;
+    const points = searchParams.get('points') || searchParams.get('point');
+    if (points) {
+      setNotice(
+        'Your recycling session was received, but no Green Points have been credited. ' +
+        'Rewards will appear only after the machine deposit is verified.',
+      );
+    } else {
+      setNotice(
+        'Recycling session received. Points will appear after machine verification.',
+      );
+    }
 
-      const rewardIdentifier = `${code}-${user.uid}`;
-      if (processedRewardRef.current === rewardIdentifier) return;
+    // Remove client-controlled reward parameters from the URL.
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.delete('code');
+    nextUrl.searchParams.delete('points');
+    nextUrl.searchParams.delete('point');
+    window.history.replaceState({}, document.title, nextUrl.pathname + nextUrl.search + nextUrl.hash);
+  }, [searchParams]);
 
-      try {
-        const points = parseInt(pointValue, 10);
-        if (Number.isNaN(points) || points <= 0) {
-          console.error('Invalid point value:', pointValue);
-          return;
-        }
-
-        processedRewardRef.current = rewardIdentifier;
-        setIsProcessing(true);
-
-        window.history.replaceState({}, document.title, window.location.pathname);
-        onShowPointsEarned(points, code, true);
-
-        // useAddPoints delegates to addPointsToUser, which writes the reward to
-        // Algorand first and updates the Firestore UI cache only after success.
-        await addPoints(
-          user.uid,
-          points,
-          `Reward earned with code: ${code}`,
-          { rewardCode: code },
-        );
-
-        onShowPointsEarned(points, code, false);
-      } catch (error) {
-        console.error('Error processing Algorand-backed reward:', error);
-        processedRewardRef.current = null;
-      } finally {
-        setIsProcessing(false);
-      }
-    };
-
-    handlePointReward();
-  }, [user?.uid, greenAfricaUser, searchParams, addPoints, isProcessing, onShowPointsEarned]);
-
-  return null;
+  return notice;
 }
