@@ -159,12 +159,21 @@ async function runNpm(label, commands, options = {}) {
 async function runPython() {
   const directory = join(root, paths['rvm-api']);
   if (!existsSync(directory)) { skipped('rvm-api', 'Component absent'); return; }
+  const venvPython = join(directory, '.venv', platformWindows ? 'Scripts/python.exe' : 'bin/python');
+  if (!existsSync(venvPython)) {
+    if (!fresh) { blocked('rvm-api:dependencies', 'Missing Python .venv. Re-run with --install.'); return; }
+    if (!(await command('rvm-api:venv', directory, python, ['-m', 'venv', '.venv'], 120_000))) return;
+  }
+  if (fresh && existsSync(join(directory, 'requirements.txt'))) {
+    if (!(await command('rvm-api:pip-install', directory, venvPython,
+      ['-m', 'pip', 'install', '--disable-pip-version-check', '--no-cache-dir', '-r', 'requirements.txt'], 900_000))) return;
+  }
   const commands = [
     ['syntax', ['-m', 'compileall', '-q', 'app', 'main.py'], 120_000],
     ['tests', ['-m', 'unittest', 'discover', '-s', 'tests', '-v'], 300_000],
   ];
   for (const [name, args, timeoutMs] of commands) {
-    const ok = await command('rvm-api:' + name, directory, python, args, timeoutMs);
+    const ok = await command('rvm-api:' + name, directory, venvPython, args, timeoutMs);
     if (!ok) break;
   }
 }
