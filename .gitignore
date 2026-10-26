@@ -1,1 +1,6 @@
 .DS_Store
+.ci-runs/
+**/node_modules/
+**/.next/
+**/dist/
+**/.expo/
