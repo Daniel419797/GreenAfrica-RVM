@@ -10,15 +10,14 @@
     "register-rvm": "tsx scripts/register-rvm-ifitness.ts"
   },
   "dependencies": {
-    "@algorandfoundation/algokit-utils": "^9.2.0",
-    "algosdk": "^3.0.0",
     "firebase": "^12.2.1",
     "firebase-admin": "^13.5.0",
     "leaflet": "^1.9.4",
     "next": "15.5.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "react-leaflet": "^5.0.0"
+    "react-leaflet": "^5.0.0",
+    "viem": "^2.57.11"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

@@ -1,7 +1,7 @@
 'use server';
 
 import { verifyRecyclerToken } from '@/lib/firebase/verified-user';
-import { getUserPointsFromBlockchain, type GreenPointsResult } from '@/lib/algorand/server-points';
+import { getUserPointsFromBlockchain, type GreenPointsResult } from '@/lib/base/server-points';
 
 /**
  * The only browser-callable Green Points action is an authenticated, read-only

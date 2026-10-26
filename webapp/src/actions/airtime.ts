@@ -8,10 +8,9 @@ import {
   updateUserAdmin,
 } from '@/lib/firebase/admin-firestore';
 import {
-  adjustPointsForUser,
   burnPointsForUser,
   getUserPointsFromBlockchain,
-} from '@/lib/algorand/server-points';
+} from '@/lib/base/server-points';
 import { verifyRecyclerToken } from '@/lib/firebase/verified-user';
 import { detectNetwork, formatPhoneNumber, isValidNigerianPhone } from '@/lib/utils/phone';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -157,6 +156,14 @@ export async function redeemAirtime(
       };
     }
 
+    if (process.env.GREENAFRICA_ENABLE_LIVE_REDEMPTION !== 'true') {
+      return {
+        success: false,
+        message: 'Airtime fulfilment is temporarily disabled pending Base settlement testing',
+        error: 'Reward fulfilment is not available during the pilot migration',
+      };
+    }
+
     const { phone, amount, network: manualNetwork } = request;
     const formattedPhone = formatPhoneNumber(phone);
     const detectedNetwork = detectNetwork(formattedPhone);
@@ -188,8 +195,8 @@ export async function redeemAirtime(
     if (!blockchainBalance.success || blockchainBalance.balance === undefined) {
       return {
         success: false,
-        message: 'Unable to verify Green Points balance on Algorand',
-        error: blockchainBalance.error || 'Algorand balance unavailable',
+        message: 'Unable to verify Green Points balance on Base',
+        error: blockchainBalance.error || 'Base balance unavailable',
       };
     }
 
@@ -214,7 +221,7 @@ export async function redeemAirtime(
 
     const redemptionId = await createRedemptionRequestAdmin(redemptionData);
 
-    // Reserve the value on the authoritative Algorand balance before asking
+    // Reserve the value on the authoritative Base balance before asking
     // the external airtime provider to fulfill the purchase.
     const burnResult = await burnPointsForUser(
       userId,
@@ -226,11 +233,11 @@ export async function redeemAirtime(
 
     if (!burnResult.success) {
       await updateRedemptionStatusAdmin(redemptionId, 'failed', {
-        failureReason: burnResult.error || 'Algorand redemption failed',
+        failureReason: burnResult.error || 'Base redemption failed',
       });
       return {
         success: false,
-        message: 'Unable to reserve Green Points on Algorand',
+        message: 'Unable to reserve Green Points on Base',
         error: burnResult.error,
         redemptionId,
       };
@@ -258,7 +265,7 @@ export async function redeemAirtime(
         },
       });
 
-      // Firestore mirrors the authoritative Algorand balance for UI speed.
+      // Firestore mirrors the authoritative Base balance for UI speed.
       await updateUserAdmin(userId, {
         totalPoints: FieldValue.increment(-requiredPoints),
       });
@@ -273,7 +280,7 @@ export async function redeemAirtime(
           redemptionId,
           network: finalNetwork,
           apiReference: apiResult.data.reference,
-          algorandTransactionId: burnResult.transactionHash,
+          baseTransactionId: burnResult.transactionHash,
         },
       });
 
@@ -294,28 +301,19 @@ export async function redeemAirtime(
       };
     }
 
-    const failureReason = apiResult.error || 'Unknown error';
+    const failureReason = apiResult.error || 'Provider did not confirm fulfilment';
 
-    // The airtime provider did not fulfill the purchase, so restore the
-    // user's Algorand points. The failed redemption remains auditable by its
-    // unique redemption ID while the compensating adjustment restores value.
-    const refundResult = await adjustPointsForUser(userId, requiredPoints, true);
-    const refundSuffix = refundResult.success
-      ? ''
-      : `; Algorand refund failed: ${refundResult.error || 'unknown error'}`;
-
-    await updateRedemptionStatusAdmin(redemptionId, 'failed', {
-      failureReason: `${failureReason}${refundSuffix}`,
-      apiResponse: {
-        errorMessage: failureReason,
-        provider: finalNetwork,
-      },
+    // Provider transport failures/timeouts may have fulfilled airtime despite a
+    // missing confirmation. Never automatically refund or retry an ambiguous
+    // request: retain the debit and mark it for audited manual reconciliation.
+    await updateRedemptionStatusAdmin(redemptionId, 'processing', {
+      failureReason: 'Manual reconciliation required: ' + failureReason,
     });
 
     return {
       success: false,
-      message: 'Airtime redemption failed',
-      error: `${failureReason}${refundSuffix}`,
+      message: 'Redemption pending provider reconciliation',
+      error: 'The provider response was inconclusive. Do not retry until support verifies the transaction.',
       failureReason,
       redemptionId,
       detectedNetwork: detectedNetwork?.name,

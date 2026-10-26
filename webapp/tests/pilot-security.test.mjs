@@ -14,7 +14,7 @@ test('only authenticated read access is exported as a public Green Points Server
 });
 
 test('internal point mutations are not public Next.js Server Actions', () => {
-  const internal = read('src/lib/algorand/server-points.ts');
+  const internal = read('src/lib/base/server-points.ts');
   assert.doesNotMatch(internal, /^['"]use server['"];/m);
   assert.match(internal, /export async function mintPointsForUser/);
 });

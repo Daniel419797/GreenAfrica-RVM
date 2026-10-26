@@ -1,10 +1,10 @@
-// Internal only: never expose Algorand reward mutations as public Server Actions.
+// Internal only: never expose Base reward mutations as public Server Actions.
 import {
-  adjustPointsOnAlgorand,
-  getRecyclerOnAlgorand,
-  recordDepositOnAlgorand,
-  redeemPointsOnAlgorand,
-} from '@/lib/algorand/client';
+  adjustPointsOnBase,
+  getRecyclerOnBase,
+  recordDepositOnBase,
+  redeemPointsOnBase,
+} from '@/lib/base/client';
 import { getUserAdmin } from '@/lib/firebase/admin-firestore';
 
 export interface GreenPointsResult {
@@ -17,7 +17,7 @@ export interface GreenPointsResult {
 
 /**
  * Award Green Points for an accepted recycling session.
- * Algorand application state is the authoritative blockchain balance.
+ * Base application state is the authoritative blockchain balance.
  */
 export async function mintPointsForUser(
   uid: string,
@@ -38,7 +38,7 @@ export async function mintPointsForUser(
       sessionId || `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     const rvmId = process.env.GREENAFRICA_DEFAULT_RVM_ID || 'RVM-IFITNESS-ORCHID-001';
 
-    const result = await recordDepositOnAlgorand(
+    const result = await recordDepositOnBase(
       user.greenId,
       rvmId,
       points,
@@ -50,17 +50,17 @@ export async function mintPointsForUser(
     if (!result.success) {
       return {
         success: false,
-        error: `Failed to record Green Points on Algorand: ${result.error}`,
+        error: `Failed to record Green Points on Base: ${result.error}`,
       };
     }
 
     return {
       success: true,
-      message: `Successfully awarded ${points} Green Points on Algorand`,
+      message: `Successfully awarded ${points} Green Points on Base`,
       transactionHash: result.transactionId,
     };
   } catch (error) {
-    console.error('Error awarding Green Points on Algorand:', error);
+    console.error('Error awarding Green Points on Base:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to award Green Points',
@@ -69,7 +69,7 @@ export async function mintPointsForUser(
 }
 
 /**
- * Deduct Green Points for a redemption through the Algorand application.
+ * Deduct Green Points for a redemption through the Base application.
  */
 export async function burnPointsForUser(
   uid: string,
@@ -88,9 +88,9 @@ export async function burnPointsForUser(
       return { success: false, error: 'User not found' };
     }
 
-    const state = await getRecyclerOnAlgorand(user.greenId);
+    const state = await getRecyclerOnBase(user.greenId);
     if (!state) {
-      return { success: false, error: 'Recycler not found in Algorand application' };
+      return { success: false, error: 'Recycler not found in Base application' };
     }
 
     if (state.points < BigInt(points)) {
@@ -100,7 +100,7 @@ export async function burnPointsForUser(
       };
     }
 
-    const result = await redeemPointsOnAlgorand(
+    const result = await redeemPointsOnBase(
       user.greenId,
       points,
       rewardType,
@@ -111,17 +111,17 @@ export async function burnPointsForUser(
     if (!result.success) {
       return {
         success: false,
-        error: `Failed to redeem Green Points on Algorand: ${result.error}`,
+        error: `Failed to redeem Green Points on Base: ${result.error}`,
       };
     }
 
     return {
       success: true,
-      message: `Successfully redeemed ${points} Green Points on Algorand`,
+      message: `Successfully redeemed ${points} Green Points on Base`,
       transactionHash: result.transactionId,
     };
   } catch (error) {
-    console.error('Error redeeming Green Points on Algorand:', error);
+    console.error('Error redeeming Green Points on Base:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to redeem Green Points',
@@ -133,6 +133,8 @@ export async function adjustPointsForUser(
   uid: string,
   points: number,
   add: boolean,
+  adjustmentId?: string,
+  reason?: string,
 ): Promise<GreenPointsResult> {
   try {
     if (!uid || points <= 0) {
@@ -144,11 +146,12 @@ export async function adjustPointsForUser(
       return { success: false, error: 'User not found' };
     }
 
-    const result = await adjustPointsOnAlgorand(user.greenId, points, add);
+    if (!adjustmentId || !reason) return { success: false, error: 'Audited adjustment ID and reason are required' };
+    const result = await adjustPointsOnBase(user.greenId, points, add, adjustmentId, reason);
     return result.success
       ? {
           success: true,
-          message: `Green Points ${add ? 'added' : 'deducted'} on Algorand`,
+          message: `Green Points ${add ? 'added' : 'deducted'} on Base`,
           transactionHash: result.transactionId,
         }
       : { success: false, error: result.error };
@@ -171,9 +174,9 @@ export async function getUserPointsFromBlockchain(uid: string): Promise<GreenPoi
       return { success: false, error: 'User not found' };
     }
 
-    const state = await getRecyclerOnAlgorand(user.greenId);
+    const state = await getRecyclerOnBase(user.greenId);
     if (!state) {
-      return { success: false, error: 'Recycler not found in Algorand application' };
+      return { success: false, error: 'Recycler not found in Base application' };
     }
 
     return {
@@ -195,9 +198,9 @@ export async function getPointsBalanceByGreenId(greenId: string): Promise<GreenP
       return { success: false, error: 'Green ID is required' };
     }
 
-    const state = await getRecyclerOnAlgorand(greenId);
+    const state = await getRecyclerOnBase(greenId);
     if (!state) {
-      return { success: false, error: 'Recycler not found in Algorand application' };
+      return { success: false, error: 'Recycler not found in Base application' };
     }
 
     return {

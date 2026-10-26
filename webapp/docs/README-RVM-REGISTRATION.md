@@ -1,39 +1,16 @@
-# Registering a GreenAfrica RVM on Algorand
+# Base Sepolia RVM registration
 
-RVMs must be registered in the GreenAfrica Algorand application before they can submit rewarded recycling sessions.
+Machine registration is **owner-only** in `base/contracts/GreenAfrica.sol`. The public Next.js Server Action rejects all RVM registration attempts.
 
-The current example registers the iFitness Orchid machine:
+After successful Base Sepolia testnet deployment, set server-only `BASE_NETWORK=sepolia`, `BASE_RPC_URL`, `BASE_GREENAFRICA_CONTRACT_ADDRESS`, and `BASE_OPERATOR_PRIVATE_KEY`. The signer must be the contract owner and have faucet test ETH.
 
-`RVM-IFITNESS-ORCHID-001`
-
-## Prerequisites
-
-Deploy the Algorand application first and configure the webapp server environment:
-
-```bash
-ALGORAND_NETWORK=testnet
-ALGORAND_GREENAFRICA_APP_ID=
-GREENAFRICA_OPERATOR_MNEMONIC=
-```
-
-Optional custom Algod/Indexer endpoints can be supplied with `ALGOD_SERVER`, `ALGOD_TOKEN`, `INDEXER_SERVER` and `INDEXER_TOKEN`.
-
-## Run the registration script
+For an intentionally registered pilot machine, use:
 
 ```bash
 cd webapp
-npm install
 npm run register-rvm -- --confirm
 ```
 
-The script calls `registerRVMOnAlgorand`, which sends `registerRvm(rvmId)` to the deployed application.
+The script defaults to dry-run without `--confirm` and rejects Mainnet provisioning.
 
-Location, human-readable name and other machine metadata stay in GreenAfrica's off-chain data layer. The Algorand application stores the machine identifier and active status needed to validate deposits.
-
-## Expected result
-
-A successful run prints the Algorand transaction ID. If the RVM is already registered, the action returns successfully without creating a duplicate machine record.
-
-## Deposit requirement
-
-`recordDeposit` rejects recycling sessions for unknown or inactive RVM IDs. Register the machine before running end-to-end bottle tests.
+Machine display name, location and camera data remain in Firebase. On-chain station ID is a one-way keccak hash. No machine IDs or contract deployments are confirmed until BaseSepolia transactions are independently verified.
