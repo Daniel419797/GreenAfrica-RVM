@@ -86,10 +86,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (userData) {
         try {
+          const idToken = await firebaseUser.getIdToken();
           const blockchainResult = await registerUserOnAlgorand(
             userData.greenId,
             userData.referralCode,
             referralCode,
+            idToken,
           );
 
           if (!blockchainResult.success) {
