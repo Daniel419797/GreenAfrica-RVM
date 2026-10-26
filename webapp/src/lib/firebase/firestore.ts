@@ -181,45 +181,16 @@ export const subscribeToUserTransactions = (
   });
 };
 
+/**
+ * Legacy client-side referrals are disabled until a verified server process
+ * records unique referrals and awards points. Never credit rewards from a
+ * browser-supplied referral code.
+ */
 export const processReferral = async (
-  referralCode: string,
-  newUserUid: string,
+  _referralCode: string,
+  _newUserUid: string,
 ): Promise<boolean> => {
-  const referrer = await getUserByReferralCode(referralCode);
-  if (!referrer) return false;
-
-  const referralPoints = parseInt(process.env.NEXT_PUBLIC_REFERRAL_POINTS || '50', 10);
-  const { adjustPointsForUser } = await import('@/actions/greenpoints');
-  const result = await adjustPointsForUser(referrer.uid, referralPoints, true);
-
-  if (!result.success) {
-    throw new Error(`Failed to award referral points on Algorand: ${result.error}`);
-  }
-
-  const referralData: Omit<Referral, 'id'> = {
-    referrerUid: referrer.uid,
-    referredUid: newUserUid,
-    referralCode,
-    pointsAwarded: referralPoints,
-    createdAt: serverTimestamp() as Timestamp,
-    status: 'completed',
-  };
-
-  await addDoc(referralsRef, referralData);
-  await addTransaction({
-    userId: referrer.uid,
-    type: 'referral',
-    amount: referralPoints,
-    description: `Friend joined via referral (+${referralPoints} points)`,
-    metadata: { transactionId: result.transactionHash },
-  });
-
-  await updateDoc(doc(usersRef, referrer.uid), {
-    referralPoints: increment(referralPoints),
-    updatedAt: serverTimestamp(),
-  });
-
-  return true;
+  return false;
 };
 
 export const getUserReferrals = async (uid: string): Promise<Referral[]> => {
@@ -238,53 +209,14 @@ export const getUserReferrals = async (uid: string): Promise<Referral[]> => {
   }));
 };
 
+/**
+ * Legacy direct client redemption is intentionally disabled. Use the
+ * authenticated airtime Server Action, which binds the token to a Firebase UID.
+ */
 export const createRedemptionRequest = async (
-  redemption: Omit<RedemptionRequest, 'id' | 'createdAt'>,
+  _redemption: Omit<RedemptionRequest, 'id' | 'createdAt'>,
 ): Promise<string> => {
-  const docRef = await addDoc(redemptionsRef, {
-    ...redemption,
-    createdAt: serverTimestamp(),
-  });
-
-  const { burnPointsForUser } = await import('@/actions/greenpoints');
-
-  try {
-    const burnResult = await burnPointsForUser(
-      redemption.userId,
-      redemption.points,
-      redemption.type,
-      redemption.phone || '',
-      docRef.id,
-    );
-
-    if (!burnResult.success) {
-      await updateDoc(doc(redemptionsRef, docRef.id), {
-        status: 'failed',
-        error: burnResult.error,
-      });
-      throw new Error(`Failed to process redemption: ${burnResult.error}`);
-    }
-
-    await addTransaction({
-      userId: redemption.userId,
-      type: 'redeemed',
-      amount: -redemption.points,
-      description: `${redemption.amount} ${redemption.type}`,
-      phone: redemption.phone,
-      metadata: {
-        transactionId: burnResult.transactionHash,
-        redemptionId: docRef.id,
-      },
-    });
-  } catch (error) {
-    await updateDoc(doc(redemptionsRef, docRef.id), {
-      status: 'failed',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
-    throw error;
-  }
-
-  return docRef.id;
+  throw new Error('Use the verified Green Africa redemption service.');
 };
 
 export const getUserRedemptions = async (userId: string): Promise<RedemptionRequest[]> => {
@@ -324,31 +256,17 @@ export const subscribeToUser = (
   });
 };
 
+/**
+ * URL codes and unverified device events may not mint redeemable points.
+ * Only the trusted RVM acceptance pipeline may award Green Points.
+ */
 export const addPointsToUser = async (
-  uid: string,
-  points: number,
-  description: string,
-  metadata?: Record<string, unknown>,
+  _uid: string,
+  _points: number,
+  _description: string,
+  _metadata?: Record<string, unknown>,
 ): Promise<void> => {
-  const { mintPointsForUser } = await import('@/actions/greenpoints');
-  const sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-  const updatedMetadata = { ...metadata, sessionId };
-
-  const mintResult = await mintPointsForUser(uid, points, sessionId);
-  if (!mintResult.success) {
-    throw new Error(`Failed to award Green Points on Algorand: ${mintResult.error}`);
-  }
-
-  await addTransaction({
-    userId: uid,
-    type: 'earned',
-    amount: points,
-    description,
-    metadata: {
-      ...updatedMetadata,
-      transactionId: mintResult.transactionHash,
-    },
-  });
+  throw new Error('Points require a verified RVM deposit.');
 };
 
 export const deleteUser = async (uid: string): Promise<void> => {
