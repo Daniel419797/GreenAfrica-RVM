@@ -86,7 +86,7 @@ async function command(name, cwd, program, args, timeoutMs = 300_000) {
   console.log('\n> ' + name + ' [' + cwd.replace(root, '.') + ']');
   stream.write('$ ' + program + ' ' + args.join(' ') + '\n');
   const child = spawn(program, args, {
-    cwd, env: cleanEnv, windowsHide: true, shell: false, detached: !platformWindows,
+    cwd, env: cleanEnv, windowsHide: true, shell: platformWindows && program === npm, detached: !platformWindows,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let timedOut = false;
@@ -136,7 +136,7 @@ const paths = {
 };
 async function installNpm(label, directory) {
   if (!existsSync(join(directory, 'package.json'))) return false;
-  if (existsSync(join(directory, 'node_modules')) && !fresh) return true;
+  if (existsSync(join(directory, 'node_modules'))) return true;
   if (!fresh) { blocked(label + ':dependencies', 'Missing node_modules. Re-run with --install.'); return false; }
   if (!existsSync(join(directory, 'package-lock.json'))) {
     blocked(label + ':dependencies', 'No npm lockfile; reproducible npm ci unavailable.');
