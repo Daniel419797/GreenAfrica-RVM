@@ -78,7 +78,24 @@ async function run(job) {
  const fd=openSync(logfile,'w',0o600);
  const env={...process.env,CI:'true',NEXT_TELEMETRY_DISABLED:'1',
   npm_config_audit:'false',npm_config_fund:'false',
-  NODE_OPTIONS:process.env.NODE_OPTIONS||'--max-old-space-size=512'};
+  NODE_OPTIONS:process.env.NODE_OPTIONS||(id === 'webapp-build' ? '--max-old-space-size=896' : '--max-old-space-size=512')};
+ // CI never needs secrets, even when the operator shell exports them.
+ for(const key of ['BASE_OPERATOR_PRIVATE_KEY','GREENAFRICA_OPERATOR_MNEMONIC',
+  'TERMII_API_KEY','FIREBASE_PRIVATE_KEY','FIREBASE_CLIENT_EMAIL']) delete env[key];
+ if(id === 'webapp-build') {
+  // Syntactically valid placeholders for Firebase's server-side SDK initialization.
+  // Never contact real Firebase, redeem rewards, or sign Base transactions in a build.
+  Object.assign(env, {
+   NEXT_PUBLIC_FIREBASE_API_KEY:'AIzaSy' + 'A'.repeat(33),
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:'greenafrica-ci.firebaseapp.com',
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID:'greenafrica-ci',
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET:'greenafrica-ci.appspot.com',
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:'123456789012',
+   NEXT_PUBLIC_FIREBASE_APP_ID:'1:123456789012:web:aaaaaaaaaaaaaaaaaaaaaa',
+   GREENAFRICA_ENABLE_LIVE_REDEMPTION:'false',
+   BASE_NETWORK:'sepolia',
+  });
+ }
  const outcome=await new Promise(done=>{
   let timedOut=false,completed=false;
   const p=spawn(command,cmdArgs,{cwd:folder,env,stdio:['ignore',fd,fd],
