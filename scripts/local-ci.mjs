@@ -19,7 +19,8 @@ if (!['smoke', 'full'].includes(profile)) throw Error('Expected --profile smoke 
 const selected = option('--only', '').split(',').map(s => s.trim()).filter(Boolean);
 const timeoutMinutes = Number(option('--timeout-minutes', '12'));
 if (!Number.isInteger(timeoutMinutes) || timeoutMinutes < 1 || timeoutMinutes > 60) throw Error('Timeout must be 1..60 minutes');
-const python = process.env.GREENAFRICA_CI_PYTHON || 'python3';
+const windows = process.platform === 'win32';
+const python = process.env.GREENAFRICA_CI_PYTHON || (windows ? 'python' : 'python3');
 const jobs = [
   ['base-contract', 'base', 'npm', ['test'], 'smoke', true],
   ['webapp-security', 'webapp', 'node', ['--test', 'tests/pilot-security.test.mjs'], 'smoke'],
@@ -34,7 +35,7 @@ const jobs = [
   ['recycler-mobile-types', 'mobile', 'node', ['node_modules/typescript/bin/tsc','--noEmit'], 'full', true, true],
 ];
 if (args.includes('--help')) {
-  console.log('bash scripts/local-ci.sh [--profile smoke|full] [--only job1,job2] [--list] [--report-dir path] [--timeout-minutes 12]');
+  console.log('node scripts/local-ci.mjs [--profile smoke|full] [--only job1,job2] [--list] [--report-dir path] [--timeout-minutes 12]');
   process.exit(0);
 }
 if (args.includes('--list')) { jobs.forEach(j => console.log(j[0] + ' [' + j[4] + ']')); process.exit(0); }
@@ -76,12 +77,20 @@ async function run(job) {
   return finish('failed',reason);
  }
  const fd=openSync(logfile,'w',0o600);
- const env={...process.env,CI:'true',NEXT_TELEMETRY_DISABLED:'1',
-  npm_config_audit:'false',npm_config_fund:'false',
-  NODE_OPTIONS:process.env.NODE_OPTIONS||(id === 'webapp-build' ? '--max-old-space-size=896' : '--max-old-space-size=512')};
- // CI never needs secrets, even when the operator shell exports them.
- for(const key of ['BASE_OPERATOR_PRIVATE_KEY','GREENAFRICA_OPERATOR_MNEMONIC',
-  'TERMII_API_KEY','FIREBASE_PRIVATE_KEY','FIREBASE_CLIENT_EMAIL']) delete env[key];
+ // Use an allowlist, not the caller's entire shell environment: CI subprocesses
+ // must never inherit deployment wallets, provider tokens, cloud secrets or
+ // production Firebase Admin credentials.
+ const allowed=['PATH','HOME','USER','USERPROFILE','APPDATA','LOCALAPPDATA',
+  'SystemRoot','SYSTEMROOT','ComSpec','PATHEXT','TEMP','TMP','TMPDIR',
+  'LANG','LC_ALL','TERM','SSL_CERT_FILE','NODE_EXTRA_CA_CERTS','VIRTUAL_ENV'];
+ const env=Object.fromEntries(allowed.filter(k=>process.env[k]!==undefined)
+   .map(k=>[k,process.env[k]]));
+ Object.assign(env,{
+  CI:'true',NEXT_TELEMETRY_DISABLED:'1',GREENAFRICA_ENABLE_LIVE_REDEMPTION:'false',
+  BASE_NETWORK:'sepolia',npm_config_audit:'false',npm_config_fund:'false',
+  NODE_OPTIONS:process.env.NODE_OPTIONS||(id === 'webapp-build' ? '--max-old-space-size=896' : '--max-old-space-size=512'),
+  OMP_NUM_THREADS:'1',OPENBLAS_NUM_THREADS:'1',
+ });
  if(id === 'webapp-build') {
   // Syntactically valid placeholders for Firebase's server-side SDK initialization.
   // Never contact real Firebase, redeem rewards, or sign Base transactions in a build.
@@ -99,8 +108,10 @@ async function run(job) {
  }
  const outcome=await new Promise(done=>{
   let timedOut=false,completed=false;
-  const p=spawn(command,cmdArgs,{cwd:folder,env,stdio:['ignore',fd,fd],
-   detached:process.platform!=='win32',windowsHide:true});
+  // npm is a .cmd shim on Windows. Fixed job arguments contain no user input.
+  const executable=windows&&command==='npm'?'npm.cmd':command;
+  const p=spawn(executable,cmdArgs,{cwd:folder,env,stdio:['ignore',fd,fd],
+   detached:!windows,windowsHide:true,shell:windows&&command==='npm'});
   const timer=setTimeout(()=>{
    timedOut=true;
    try { if(process.platform==='win32')p.kill('SIGTERM'); else if(p.pid)process.kill(-p.pid,'SIGTERM'); } catch {}
