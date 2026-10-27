@@ -3,3 +3,8 @@
 rvm_api/.venv/
 **/__pycache__/
 *.py[cod]
+**/node_modules
+**/.next/
+**/.astro/
+**/dist/
+**/.expo/
