@@ -1,3 +1,6 @@
 .DS_Store
 .local-ci/
-rvm_api/.venv/
+**/node_modules
+**/node_modules/
+**/.venv
+**/.venv/
