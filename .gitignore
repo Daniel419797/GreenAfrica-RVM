@@ -1,8 +1,5 @@
 .DS_Store
 .local-ci/
-**/node_modules
-**/node_modules/
-**/.venv
-**/.venv/
+rvm_api/.venv/
 **/__pycache__/
-**/*.pyc
+*.py[cod]
